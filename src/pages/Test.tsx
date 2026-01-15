@@ -15,14 +15,15 @@ const Test = () => {
   const navigate = useNavigate();
   const { isAuthenticated, addTestResult } = useAuth();
   
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: string]: number }>({});
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [testStartTime] = useState(Date.now());
-
   const test = availableTests.find(t => t.id === testId);
   const questions: Question[] = testId === 'aptitude-test' ? aptitudeQuestions : technicalQuestions;
+  
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: string]: number }>({});
+  const [timeLeft, setTimeLeft] = useState(() => test ? test.duration * 60 : 0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [testStarted, setTestStarted] = useState(false);
+  const [testStartTime] = useState(Date.now());
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -33,8 +34,12 @@ const Test = () => {
       navigate('/dashboard');
       return;
     }
-    setTimeLeft(test.duration * 60);
-  }, [isAuthenticated, test, navigate]);
+    // Initialize timer only once when test starts
+    if (!testStarted && test) {
+      setTimeLeft(test.duration * 60);
+      setTestStarted(true);
+    }
+  }, [isAuthenticated, test, navigate, testStarted]);
 
   const submitTest = useCallback(() => {
     if (isSubmitting) return;
@@ -66,7 +71,10 @@ const Test = () => {
   }, [isSubmitting, questions, selectedAnswers, testStartTime, test, addTestResult, navigate]);
 
   useEffect(() => {
-    if (timeLeft <= 0 && test) {
+    // Don't start timer until test has started
+    if (!testStarted || !test) return;
+    
+    if (timeLeft <= 0) {
       toast.warning("Time's up! Submitting your test...");
       submitTest();
       return;
@@ -77,7 +85,7 @@ const Test = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, test, submitTest]);
+  }, [timeLeft, test, submitTest, testStarted]);
 
   if (!test || !isAuthenticated) return null;
 
