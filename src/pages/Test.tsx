@@ -20,11 +20,12 @@ const Test = () => {
   
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: string]: number }>({});
-  const [timeLeft, setTimeLeft] = useState(() => test ? test.duration * 60 : 0);
+  const [timeLeft, setTimeLeft] = useState(-1); // Start with -1 to indicate not initialized
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [testStarted, setTestStarted] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const [testStartTime] = useState(Date.now());
 
+  // Initialize test only once
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/auth');
@@ -34,12 +35,12 @@ const Test = () => {
       navigate('/dashboard');
       return;
     }
-    // Initialize timer only once when test starts
-    if (!testStarted && test) {
+    // Only initialize once
+    if (!isReady && test) {
       setTimeLeft(test.duration * 60);
-      setTestStarted(true);
+      setIsReady(true);
     }
-  }, [isAuthenticated, test, navigate, testStarted]);
+  }, [isAuthenticated, test, navigate, isReady]);
 
   const submitTest = useCallback(() => {
     if (isSubmitting) return;
@@ -71,10 +72,10 @@ const Test = () => {
   }, [isSubmitting, questions, selectedAnswers, testStartTime, test, addTestResult, navigate]);
 
   useEffect(() => {
-    // Don't start timer until test has started
-    if (!testStarted || !test) return;
+    // Don't start timer until test is ready and time is initialized
+    if (!isReady || !test || timeLeft < 0) return;
     
-    if (timeLeft <= 0) {
+    if (timeLeft === 0) {
       toast.warning("Time's up! Submitting your test...");
       submitTest();
       return;
@@ -85,9 +86,9 @@ const Test = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, test, submitTest, testStarted]);
+  }, [timeLeft, test, submitTest, isReady]);
 
-  if (!test || !isAuthenticated) return null;
+  if (!test || !isAuthenticated || !isReady) return null;
 
   const currentQuestion = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
