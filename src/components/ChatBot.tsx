@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, Sparkles } from 'lucide-react';
+import { Brain, X, Send, Bot, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -275,7 +275,8 @@ What would you like to know more about?`;
         onClick={() => setIsOpen(true)}
         className={`fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg z-50 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300 ${isOpen ? 'scale-0' : 'scale-100'}`}
       >
-        <MessageCircle size={24} />
+        <Brain size={24} />
+        
       </Button>
 
       {/* Chat Window */}
@@ -288,7 +289,7 @@ What would you like to know more about?`;
         <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <Sparkles size={20} />
+              <Brain size={20} />
             </div>
             <div>
               <h3 className="font-semibold">AI Learning Assistant</h3>
