@@ -5,14 +5,16 @@ import { TestResult, Question } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
-import { Trophy, Target, CheckCircle, XCircle, ArrowLeft, RotateCcw, Home } from 'lucide-react';
+import { Trophy, Target, CheckCircle, XCircle, ArrowLeft, RotateCcw, Home, Download } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import confetti from 'canvas-confetti';
+import jsPDF from 'jspdf';
+import ChatBot from '@/components/ChatBot';
 
 const Results = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   const { result, questions } = (location.state as { result: TestResult; questions: Question[] }) || {};
 
@@ -60,6 +62,140 @@ const Results = () => {
   };
 
   const scoreMessage = getScoreMessage();
+
+  const downloadReport = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFillColor(99, 102, 241);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Skiloovate LMS', pageWidth / 2, 18, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('AI-Assisted Learning Assessment Report', pageWidth / 2, 30, { align: 'center' });
+    
+    // Student Info
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Student Information', 20, 55);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Name: ${user?.name || 'Student'}`, 20, 65);
+    doc.text(`Email: ${user?.email || 'N/A'}`, 20, 73);
+    doc.text(`Course: ${user?.course || 'N/A'}`, 20, 81);
+    doc.text(`Date: ${new Date(result.completedAt).toLocaleDateString()}`, 20, 89);
+    
+    // Test Summary
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Test Summary', 20, 105);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Test Type: ${result.testType.charAt(0).toUpperCase() + result.testType.slice(1)} Assessment`, 20, 115);
+    doc.text(`Total Questions: ${result.totalQuestions}`, 20, 123);
+    doc.text(`Time Taken: ${formatTime(result.timeTaken)}`, 20, 131);
+    
+    // Score Box
+    doc.setFillColor(240, 240, 250);
+    doc.roundedRect(120, 100, 70, 40, 3, 3, 'F');
+    
+    doc.setFontSize(28);
+    doc.setFont('helvetica', 'bold');
+    const scoreColor = percentage >= 70 ? [34, 197, 94] : percentage >= 50 ? [234, 179, 8] : [239, 68, 68];
+    doc.setTextColor(scoreColor[0], scoreColor[1], scoreColor[2]);
+    doc.text(`${percentage}%`, 155, 120, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Score', 155, 132, { align: 'center' });
+    
+    // Results Breakdown
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Results Breakdown', 20, 155);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(34, 197, 94);
+    doc.text(`✓ Correct Answers: ${result.correctAnswers}`, 20, 165);
+    doc.setTextColor(239, 68, 68);
+    doc.text(`✗ Wrong Answers: ${result.wrongAnswers}`, 20, 173);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`○ Unanswered: ${result.totalQuestions - result.correctAnswers - result.wrongAnswers}`, 20, 181);
+    
+    // Question Details Header
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Question-wise Analysis', 20, 200);
+    
+    let yPos = 210;
+    const maxY = 280;
+    
+    questions.forEach((question, index) => {
+      const answer = result.answers.find(a => a.questionId === question.id);
+      const isCorrect = answer?.isCorrect;
+      const selectedAnswer = answer?.selectedAnswer ?? -1;
+      
+      if (yPos > maxY) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      const status = isCorrect ? '✓' : selectedAnswer === -1 ? '○' : '✗';
+      const statusColor = isCorrect ? [34, 197, 94] : selectedAnswer === -1 ? [100, 100, 100] : [239, 68, 68];
+      doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+      doc.text(`${status} Q${index + 1}: `, 20, yPos);
+      
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      const questionText = question.question.substring(0, 80) + (question.question.length > 80 ? '...' : '');
+      doc.text(questionText, 38, yPos);
+      
+      yPos += 6;
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      
+      if (selectedAnswer !== -1) {
+        doc.text(`Your Answer: ${question.options[selectedAnswer]?.substring(0, 50) || 'N/A'}`, 38, yPos);
+      } else {
+        doc.text('Your Answer: Not answered', 38, yPos);
+      }
+      
+      yPos += 5;
+      doc.setTextColor(34, 197, 94);
+      doc.text(`Correct Answer: ${question.options[question.correctAnswer]?.substring(0, 50)}`, 38, yPos);
+      
+      yPos += 10;
+    });
+    
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `Generated by Skiloovate LMS | Page ${i} of ${totalPages}`,
+        pageWidth / 2,
+        290,
+        { align: 'center' }
+      );
+    }
+    
+    doc.save(`Skiloovate_${result.testType}_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,6 +261,10 @@ const Results = () => {
           <Button variant="outline" onClick={() => navigate('/dashboard')}>
             <ArrowLeft size={18} className="mr-2" />
             Back to Dashboard
+          </Button>
+          <Button variant="success" onClick={downloadReport}>
+            <Download size={18} className="mr-2" />
+            Download Report
           </Button>
           <Button variant="gradient" onClick={() => navigate(`/test/${result.testType}-test`)}>
             <RotateCcw size={18} className="mr-2" />
@@ -212,6 +352,9 @@ const Results = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* AI Chatbot */}
+      <ChatBot />
     </div>
   );
 };

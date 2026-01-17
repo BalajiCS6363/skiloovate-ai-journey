@@ -8,6 +8,7 @@ import { availableTests } from '@/data/questions';
 import { Trophy, Target, ClipboardCheck, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import ChatBot from '@/components/ChatBot';
 
 const Dashboard = () => {
   const { user, isAuthenticated, testResults } = useAuth();
@@ -173,6 +174,9 @@ const Dashboard = () => {
           </div>
         </div>
       </main>
+
+      {/* AI Chatbot */}
+      <ChatBot />
     </div>
   );
 };
