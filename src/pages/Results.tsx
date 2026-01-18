@@ -1,11 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { TestResult, Question } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
-import { Trophy, Target, CheckCircle, XCircle, ArrowLeft, RotateCcw, Home, Download } from 'lucide-react';
+import { Trophy, Target, CheckCircle, XCircle, ArrowLeft, RotateCcw, Home, Download, TrendingUp, Lightbulb, BookOpen, Brain, Code, AlertTriangle, Sparkles } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import confetti from 'canvas-confetti';
 import jsPDF from 'jspdf';
@@ -62,6 +62,139 @@ const Results = () => {
   };
 
   const scoreMessage = getScoreMessage();
+
+  // Calculate performance breakdown by difficulty
+  const performanceBreakdown = useMemo(() => {
+    const breakdown = {
+      easy: { total: 0, correct: 0 },
+      medium: { total: 0, correct: 0 },
+      hard: { total: 0, correct: 0 }
+    };
+
+    questions.forEach((question) => {
+      const answer = result.answers.find(a => a.questionId === question.id);
+      breakdown[question.difficulty].total++;
+      if (answer?.isCorrect) {
+        breakdown[question.difficulty].correct++;
+      }
+    });
+
+    return breakdown;
+  }, [questions, result.answers]);
+
+  // Generate personalized recommendations
+  const recommendations = useMemo(() => {
+    const tips: { icon: React.ReactNode; title: string; description: string; priority: 'high' | 'medium' | 'low' }[] = [];
+    
+    const easyPercentage = performanceBreakdown.easy.total > 0 
+      ? (performanceBreakdown.easy.correct / performanceBreakdown.easy.total) * 100 
+      : 100;
+    const mediumPercentage = performanceBreakdown.medium.total > 0 
+      ? (performanceBreakdown.medium.correct / performanceBreakdown.medium.total) * 100 
+      : 100;
+    const hardPercentage = performanceBreakdown.hard.total > 0 
+      ? (performanceBreakdown.hard.correct / performanceBreakdown.hard.total) * 100 
+      : 100;
+
+    if (result.testType === 'aptitude') {
+      // Aptitude-specific recommendations
+      if (easyPercentage < 70) {
+        tips.push({
+          icon: <AlertTriangle className="text-destructive" size={20} />,
+          title: 'Strengthen Fundamentals',
+          description: 'Focus on basic arithmetic operations, percentages, and ratios. Practice daily calculations to build speed and accuracy.',
+          priority: 'high'
+        });
+      }
+      
+      if (mediumPercentage < 60) {
+        tips.push({
+          icon: <Brain className="text-warning" size={20} />,
+          title: 'Improve Problem-Solving',
+          description: 'Work on number series, pattern recognition, and word problems. Try solving puzzles and logic games regularly.',
+          priority: 'medium'
+        });
+      }
+      
+      if (hardPercentage < 50) {
+        tips.push({
+          icon: <TrendingUp className="text-primary" size={20} />,
+          title: 'Challenge Yourself',
+          description: 'Attempt advanced aptitude problems involving time & work, permutations, and probability. Join study groups for discussion.',
+          priority: 'low'
+        });
+      }
+
+      if (percentage >= 70) {
+        tips.push({
+          icon: <Sparkles className="text-success" size={20} />,
+          title: 'Maintain Excellence',
+          description: 'Great performance! Keep practicing to maintain your skills and try timing yourself to improve speed.',
+          priority: 'low'
+        });
+      }
+
+      // Time-based recommendation
+      if (result.timeTaken < result.totalQuestions * 30) {
+        tips.push({
+          icon: <Lightbulb className="text-warning" size={20} />,
+          title: 'Take Your Time',
+          description: 'You finished quickly. Consider spending more time reviewing answers to avoid careless mistakes.',
+          priority: 'medium'
+        });
+      }
+    } else {
+      // Technical-specific recommendations
+      if (easyPercentage < 70) {
+        tips.push({
+          icon: <AlertTriangle className="text-destructive" size={20} />,
+          title: 'Review Core Concepts',
+          description: 'Strengthen your understanding of HTML, CSS, and basic programming syntax. Practice coding fundamentals daily.',
+          priority: 'high'
+        });
+      }
+      
+      if (mediumPercentage < 60) {
+        tips.push({
+          icon: <Code className="text-warning" size={20} />,
+          title: 'Practice Data Structures',
+          description: 'Focus on arrays, stacks, queues, and linked lists. Implement them from scratch to understand their workings.',
+          priority: 'medium'
+        });
+      }
+      
+      if (hardPercentage < 50) {
+        tips.push({
+          icon: <TrendingUp className="text-primary" size={20} />,
+          title: 'Master Algorithms',
+          description: 'Study sorting algorithms, time complexity, and advanced concepts. Practice on coding platforms like LeetCode.',
+          priority: 'low'
+        });
+      }
+
+      if (percentage >= 70) {
+        tips.push({
+          icon: <Sparkles className="text-success" size={20} />,
+          title: 'Keep Building',
+          description: 'Excellent technical skills! Continue learning new frameworks and building projects to apply your knowledge.',
+          priority: 'low'
+        });
+      }
+
+      tips.push({
+        icon: <BookOpen className="text-primary" size={20} />,
+        title: 'Hands-on Practice',
+        description: 'Build small projects applying concepts you learned. Real-world experience solidifies theoretical knowledge.',
+        priority: 'medium'
+      });
+    }
+
+    // Sort by priority
+    return tips.sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    }).slice(0, 4);
+  }, [performanceBreakdown, percentage, result.testType, result.timeTaken, result.totalQuestions]);
 
   const downloadReport = () => {
     const doc = new jsPDF();
@@ -271,6 +404,147 @@ const Results = () => {
             Retake Test
           </Button>
         </div>
+
+        {/* Overall Performance Summary */}
+        <Card className="mb-8 animate-fade-in">
+          <CardHeader>
+            <CardTitle className="font-display flex items-center gap-2">
+              <Target className="text-primary" size={24} />
+              Overall Performance Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-3 mb-6">
+              {/* Easy Questions */}
+              <div className="p-4 rounded-xl bg-success/10 border border-success/20">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-success">Easy</span>
+                  <span className="text-xs px-2 py-1 bg-success/20 rounded-full text-success">
+                    {performanceBreakdown.easy.correct}/{performanceBreakdown.easy.total}
+                  </span>
+                </div>
+                <Progress 
+                  value={performanceBreakdown.easy.total > 0 
+                    ? (performanceBreakdown.easy.correct / performanceBreakdown.easy.total) * 100 
+                    : 0} 
+                  className="h-2"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  {performanceBreakdown.easy.total > 0 
+                    ? Math.round((performanceBreakdown.easy.correct / performanceBreakdown.easy.total) * 100)
+                    : 0}% accuracy
+                </p>
+              </div>
+
+              {/* Medium Questions */}
+              <div className="p-4 rounded-xl bg-warning/10 border border-warning/20">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-warning">Medium</span>
+                  <span className="text-xs px-2 py-1 bg-warning/20 rounded-full text-warning">
+                    {performanceBreakdown.medium.correct}/{performanceBreakdown.medium.total}
+                  </span>
+                </div>
+                <Progress 
+                  value={performanceBreakdown.medium.total > 0 
+                    ? (performanceBreakdown.medium.correct / performanceBreakdown.medium.total) * 100 
+                    : 0} 
+                  className="h-2"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  {performanceBreakdown.medium.total > 0 
+                    ? Math.round((performanceBreakdown.medium.correct / performanceBreakdown.medium.total) * 100)
+                    : 0}% accuracy
+                </p>
+              </div>
+
+              {/* Hard Questions */}
+              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-destructive">Hard</span>
+                  <span className="text-xs px-2 py-1 bg-destructive/20 rounded-full text-destructive">
+                    {performanceBreakdown.hard.correct}/{performanceBreakdown.hard.total}
+                  </span>
+                </div>
+                <Progress 
+                  value={performanceBreakdown.hard.total > 0 
+                    ? (performanceBreakdown.hard.correct / performanceBreakdown.hard.total) * 100 
+                    : 0} 
+                  className="h-2"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  {performanceBreakdown.hard.total > 0 
+                    ? Math.round((performanceBreakdown.hard.correct / performanceBreakdown.hard.total) * 100)
+                    : 0}% accuracy
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-muted/50 border">
+              <div className="flex items-center gap-3 mb-2">
+                {result.testType === 'aptitude' ? <Brain size={20} className="text-primary" /> : <Code size={20} className="text-primary" />}
+                <span className="font-medium capitalize">{result.testType} Assessment Analysis</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {percentage >= 70 
+                  ? `Excellent work! You demonstrated strong ${result.testType} skills with a ${percentage}% score. Focus on maintaining consistency and challenging yourself with harder problems.`
+                  : percentage >= 50
+                    ? `Good effort! Your ${result.testType} fundamentals are solid. Practice more complex problems to improve your score from ${percentage}% to the next level.`
+                    : `Keep practicing! Your ${result.testType} score of ${percentage}% shows room for improvement. Focus on fundamentals and gradually work up to harder problems.`
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Personalized Recommendations */}
+        <Card className="mb-8 animate-fade-in">
+          <CardHeader>
+            <CardTitle className="font-display flex items-center gap-2">
+              <Lightbulb className="text-warning" size={24} />
+              Personalized Recommendations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              {recommendations.map((rec, index) => (
+                <div 
+                  key={index}
+                  className={`p-4 rounded-xl border-2 transition-all hover:shadow-md ${
+                    rec.priority === 'high' 
+                      ? 'border-destructive/30 bg-destructive/5' 
+                      : rec.priority === 'medium'
+                        ? 'border-warning/30 bg-warning/5'
+                        : 'border-success/30 bg-success/5'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center flex-shrink-0 shadow-sm">
+                      {rec.icon}
+                    </div>
+                    <div>
+                      <h4 className="font-medium mb-1">{rec.title}</h4>
+                      <p className="text-sm text-muted-foreground">{rec.description}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 p-4 rounded-xl bg-primary/10 border border-primary/20">
+              <div className="flex items-center gap-3">
+                <Trophy className="text-primary" size={24} />
+                <div>
+                  <h4 className="font-medium">Next Steps</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {percentage >= 70 
+                      ? 'Challenge yourself with the other assessment type to become a well-rounded candidate!'
+                      : 'Review the incorrect answers below, understand the concepts, and retake the test to improve your score.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Detailed Answers */}
         <Card>
